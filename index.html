@@ -1,0 +1,1522 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>가격 운영 대시보드 (MVP)</title>
+  <style>
+    :root{
+      --bg:#f7f7f8; --card:#fff; --line:#e5e7eb; --text:#111827;
+      --muted:#6b7280; --danger:#dc2626; --warn:#d97706; --ok:#059669;
+      --accent:#111827;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    }
+    .wrap{max-width:1400px; margin:20px auto; padding:0 16px;}
+    h1{font-size:20px; margin:0;}
+    .sub{color:var(--muted); font-size:12px; margin-top:6px}
+    .topbar{
+      display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px;
+      flex-wrap: wrap;
+    }
+    .tabs{display:flex; gap:8px; margin:12px 0 14px; flex-wrap:wrap;}
+    .tab{
+      border:1px solid var(--line); background:#fff; color:var(--text);
+      padding:9px 12px; border-radius:10px; cursor:pointer; font-size:13px;
+    }
+    .tab.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+    .grid{display:grid; grid-template-columns:360px 1fr; gap:14px;}
+    .card{
+      background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px;
+    }
+    .card h2{font-size:15px; margin:0 0 10px;}
+    .row{display:flex; gap:8px; align-items:flex-start;}
+    .row > *{flex:1; min-width:0;}
+    label{display:block; font-size:12px; color:#374151; margin:8px 0 5px; line-height:1.3;}
+    input, select, textarea, button{
+      width:100%; border:1px solid #d1d5db; border-radius:10px; padding:9px 10px;
+      font-size:13px; background:#fff;
+      writing-mode: horizontal-tb; /* 혹시라도 세로 깨짐 방지 */
+      text-orientation: mixed;
+    }
+    textarea{resize:vertical}
+    button{cursor:pointer}
+    .btn{background:#111827; color:#fff; border:none;}
+    .btn-secondary{background:#fff;}
+    .btn-danger{background:#fff0f0; color:#991b1b; border-color:#fecaca;}
+    .muted{color:var(--muted); font-size:12px;}
+    .section{display:none;}
+    .section.active{display:block;}
+    .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
+    .kpi{
+      border:1px solid var(--line); border-radius:12px; padding:10px; background:#fff;
+    }
+    .kpi .t{font-size:11px; color:var(--muted);}
+    .kpi .v{font-size:18px; font-weight:700; margin-top:4px;}
+    table{width:100%; border-collapse:collapse; background:#fff;}
+    th, td{border-bottom:1px solid var(--line); padding:8px; font-size:12px; vertical-align:top;}
+    th{background:#fafafa; color:#374151; position:sticky; top:0; z-index:1;}
+    td.right, th.right{text-align:right;}
+    .table-wrap{
+      border:1px solid var(--line); border-radius:12px; overflow:auto; max-height:600px; background:#fff;
+    }
+    .pill{
+      display:inline-block; border-radius:999px; padding:3px 8px; font-size:11px; font-weight:600;
+      border:1px solid var(--line);
+      white-space:nowrap;
+    }
+    .pill.scheduled{background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;}
+    .pill.active{background:#ecfdf5; color:#047857; border-color:#a7f3d0;}
+    .pill.ended{background:#f3f4f6; color:#6b7280; border-color:#e5e7eb;}
+    .pill.soon{background:#fff7ed; color:#c2410c; border-color:#fed7aa;}
+    .pill.risk{background:#fef2f2; color:#b91c1c; border-color:#fecaca;}
+    .danger{color:var(--danger); font-weight:700;}
+    .ok{color:var(--ok); font-weight:700;}
+    .warn{color:var(--warn); font-weight:700;}
+    .inline-actions{display:flex; gap:6px; flex-wrap:wrap; align-items:center;}
+    .inline-actions button{
+      width:auto; padding:6px 8px; font-size:11px; border-radius:8px;
+    }
+    .small{font-size:11px;}
+    .hidden{display:none;}
+    .sticky-tools{
+      display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;
+    }
+    .sticky-tools button{width:auto;}
+    .config-box{background:#fafafa; border:1px dashed #d1d5db; border-radius:12px; padding:10px;}
+    .w-120{width:120px}
+    .w-100{width:100px}
+    .w-90{width:90px}
+    .w-80{width:80px}
+    .w-70{width:70px}
+    .w-150{width:150px}
+    .nowrap{white-space:nowrap;}
+    .legend{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0;}
+    .legend .pill{font-weight:500}
+    .footer-note{margin-top:8px; font-size:11px; color:var(--muted);}
+    .right-input{text-align:right;}
+
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr;}
+      .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>가격 운영 대시보드 (MVP)</h1>
+      <div class="sub">상품 원가 계산 + 채널별 가격/할인 운영 + 기간 관리 + 마진 경고</div>
+    </div>
+    <div class="inline-actions">
+      <button class="btn-secondary" id="btnExportJson">데이터 백업(JSON)</button>
+      <button class="btn-secondary" id="btnImportJson">데이터 불러오기(JSON)</button>
+      <button class="btn-danger" id="btnResetAll">전체 초기화</button>
+      <input type="file" id="importJsonFile" class="hidden" accept=".json,application/json" />
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="calc">상품 계산</button>
+    <button class="tab" data-tab="ops">가격 운영표</button>
+    <button class="tab" data-tab="schedule">할인 일정</button>
+    <button class="tab" data-tab="settings">설정</button>
+  </div>
+
+  <!-- ======================== 상품 계산 탭 ======================== -->
+  <section class="section active" id="section-calc">
+    <div class="grid">
+      <div class="card">
+        <h2>상품 계산 입력</h2>
+
+        <label>상품명</label>
+        <input id="calcProductName" placeholder="예: 떡국떡 600g x 5세트" />
+
+        <!-- VAT 입력 방식 + VAT율 -->
+        <div class="row">
+          <div>
+            <label>원가 입력 방식</label>
+            <select id="calcCostVatMode">
+              <option value="vat_excluded">VAT 비포함가 입력</option>
+              <option value="vat_included">VAT 포함가 입력</option>
+            </select>
+          </div>
+          <div>
+            <label>VAT율</label>
+            <input id="calcVatRate" type="number" min="0" max="1" step="0.01" value="0.10" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>수량(묶음)</label>
+            <input id="calcQty" type="number" min="1" step="1" value="1" />
+          </div>
+          <div>
+            <label>원가</label>
+            <input id="calcBaseCost" type="number" min="0" step="1" value="7552" />
+          </div>
+        </div>
+
+        <!-- 계산 보정 마진 프리셋 -->
+        <div class="row">
+          <div>
+            <label>기본 계산 마진 프리셋</label>
+            <select id="calcGuardPreset">
+              <option value="0.05">5% (/0.95)</option>
+              <option value="0.10" selected>10% (/0.90)</option>
+              <option value="0.15">15% (/0.85)</option>
+              <option value="custom">직접입력</option>
+            </select>
+          </div>
+          <div>
+            <label>기본 계산 마진율 (직접입력용)</label>
+            <input id="calcDiscountGuardRate" type="number" min="0" max="0.99" step="0.01" value="0.10" />
+          </div>
+        </div>
+
+        <label>보냉박스 타입</label>
+        <select id="calcInsulationType"></select>
+
+        <label>스티로폼 타입</label>
+        <select id="calcStyroType"></select>
+
+        <label>배송비 타입</label>
+        <select id="calcShippingType"></select>
+
+        <label>실온박스 타입</label>
+        <select id="calcNormalBoxType"></select>
+
+        <div class="row">
+          <div>
+            <label>추가 부자재비 (선택)</label>
+            <input id="calcExtraMatCost" type="number" min="0" step="1" value="0" />
+          </div>
+          <div>
+            <label>추천가 올림단위</label>
+            <select id="calcRoundUnit">
+              <option value="100">100원</option>
+              <option value="500">500원</option>
+              <option value="1000">1000원</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="sticky-tools">
+          <button class="btn" id="btnCalcRun">계산하기</button>
+          <button class="btn-secondary" id="btnCalcToOps">운영표에 추가</button>
+          <button class="btn-secondary" id="btnCalcReset">입력 초기화</button>
+        </div>
+
+        <div class="footer-note">
+          * 기본 계산 마진 프리셋은 “행사/쿠폰 감안해서 안전하게 보는 값” (엑셀의 /0.9 같은 개념)
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>계산 결과</h2>
+        <div class="kpi-grid" id="calcKpis"></div>
+
+        <div style="margin-top:12px;">
+          <h2 style="margin-bottom:8px;">채널별 최소 판매가 / 목표마진 판매가</h2>
+          <div class="table-wrap" style="max-height:380px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>채널</th>
+                  <th>수수료율</th>
+                  <th>수수료기준</th>
+                  <th class="right">손익분기</th>
+                  <th class="right">마진 5%</th>
+                  <th class="right">마진 10%</th>
+                  <th class="right">마진 15%</th>
+                </tr>
+              </thead>
+              <tbody id="calcResultTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <h2 style="margin-bottom:8px;">계산 상세 메모</h2>
+          <textarea id="calcSummary" rows="8" readonly></textarea>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================== 운영표 탭 ======================== -->
+  <section class="section" id="section-ops">
+    <div class="card" style="margin-bottom:12px;">
+      <h2>운영표 필터 / 빠른 액션</h2>
+      <div class="row">
+        <div>
+          <label>검색 (상품명)</label>
+          <input id="opsFilterKeyword" placeholder="상품명 검색" />
+        </div>
+        <div>
+          <label>채널</label>
+          <select id="opsFilterChannel">
+            <option value="">전체</option>
+          </select>
+        </div>
+        <div>
+          <label>상태</label>
+          <select id="opsFilterStatus">
+            <option value="">전체</option>
+            <option value="예정">예정</option>
+            <option value="진행중">진행중</option>
+            <option value="종료">종료</option>
+            <option value="종료임박">종료임박</option>
+          </select>
+        </div>
+        <div>
+          <label>마진위험</label>
+          <select id="opsFilterRisk">
+            <option value="">전체</option>
+            <option value="위험만">위험만</option>
+            <option value="정상만">정상만</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sticky-tools">
+        <button class="btn-secondary" id="btnOpsAddBlank">빈 행 추가</button>
+        <button class="btn-secondary" id="btnOpsDuplicateSelected">선택 행 복제</button>
+        <button class="btn-secondary" id="btnOpsDeleteSelected">선택 행 삭제</button>
+        <button class="btn-secondary" id="btnOpsExportCsv">운영표 CSV 내보내기</button>
+        <button class="btn-secondary" id="btnOpsExportTodayChanges">오늘 변경분 CSV</button>
+      </div>
+
+      <div class="legend">
+        <span class="pill active">진행중</span>
+        <span class="pill scheduled">예정</span>
+        <span class="pill ended">종료</span>
+        <span class="pill soon">종료임박</span>
+        <span class="pill risk">마진 위험</span>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="w-70">선택</th>
+            <th class="w-150">상품명</th>
+            <th class="w-100">채널</th>
+            <th class="w-90 right">총원가</th>
+            <th class="w-90 right">기준가(지마켓)</th>
+            <th class="w-90 right">정상가</th>
+            <th class="w-90">할인방식</th>
+            <th class="w-90 right">할인값</th>
+            <th class="w-90 right">할인가</th>
+            <th class="w-80 right">수수료%</th>
+            <th class="w-90">수수료기준</th>
+            <th class="w-90 right">실수령예상</th>
+            <th class="w-90 right">마진액</th>
+            <th class="w-90 right">마진률</th>
+            <th class="w-100">시작일</th>
+            <th class="w-100">종료일</th>
+            <th class="w-90">상태</th>
+            <th class="w-150">메모</th>
+            <th class="w-100">액션</th>
+          </tr>
+        </thead>
+        <tbody id="opsTableBody"></tbody>
+      </table>
+    </div>
+    <div class="footer-note">* 네이버 같은 채널은 “할인가 기준 수수료”로 설정 가능. 지마켓 기준가를 기준값으로 유지하면서 할인 영향 확인 가능.</div>
+  </section>
+
+  <!-- ======================== 일정 탭 ======================== -->
+  <section class="section" id="section-schedule">
+    <div class="card">
+      <h2>할인 일정 한눈에 보기</h2>
+      <div class="row">
+        <div>
+          <label>보기 기준</label>
+          <select id="scheduleViewMode">
+            <option value="all">전체</option>
+            <option value="today_end">오늘 종료</option>
+            <option value="soon_end">3일 내 종료</option>
+            <option value="active">진행중</option>
+            <option value="scheduled">예정</option>
+          </select>
+        </div>
+        <div>
+          <label>채널 필터</label>
+          <select id="scheduleChannelFilter"><option value="">전체</option></select>
+        </div>
+        <div>
+          <label>검색</label>
+          <input id="scheduleKeyword" placeholder="상품명 검색" />
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="table-wrap" style="max-height:650px;">
+          <table>
+            <thead>
+              <tr>
+                <th>상태</th>
+                <th>상품명</th>
+                <th>채널</th>
+                <th class="right">정상가</th>
+                <th class="right">할인가</th>
+                <th>기간</th>
+                <th>남은기간</th>
+                <th class="right">마진률</th>
+                <th>메모</th>
+              </tr>
+            </thead>
+            <tbody id="scheduleTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================== 설정 탭 ======================== -->
+  <section class="section" id="section-settings">
+    <div class="grid">
+      <div class="card">
+        <h2>채널 정책 설정</h2>
+        <div class="muted">수수료율 + 수수료 계산 기준(정상가/할인가)을 여기서 관리</div>
+        <div id="settingsChannelPolicies" style="margin-top:10px;"></div>
+        <div class="sticky-tools">
+          <button class="btn-secondary" id="btnAddPolicy">채널 추가</button>
+          <button class="btn" id="btnSavePolicies">정책 저장</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>포장/배송 옵션 설정</h2>
+        <div class="muted">엑셀 Sheet2 느낌 그대로 JSON 수정 가능</div>
+        <div class="config-box" style="margin-top:10px;">
+          <label>옵션 JSON</label>
+          <textarea id="settingsCostOptionsJson" rows="18"></textarea>
+          <div class="sticky-tools">
+            <button class="btn" id="btnApplyCostOptions">옵션 적용/저장</button>
+            <button class="btn-secondary" id="btnResetCostOptions">기본값 복원</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <h2>운영 기준/경고 설정</h2>
+      <div class="row">
+        <div>
+          <label>최소 허용 마진률 (%)</label>
+          <input id="settingsMinMarginRate" type="number" min="0" step="0.1" />
+        </div>
+        <div>
+          <label>최소 허용 마진액 (원)</label>
+          <input id="settingsMinMarginAmt" type="number" min="0" step="100" />
+        </div>
+        <div>
+          <label>기준 채널 (기본)</label>
+          <select id="settingsBaseChannel"></select>
+        </div>
+        <div>
+          <label>종료 임박 기준 (일)</label>
+          <input id="settingsSoonDays" type="number" min="1" step="1" />
+        </div>
+      </div>
+      <div class="sticky-tools">
+        <button class="btn" id="btnSaveRuntimeSettings">설정 저장</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ===========================
+   유틸
+=========================== */
+function uid(){
+  return "id_" + Math.random().toString(36).slice(2,10) + "_" + Date.now().toString(36);
+}
+function $(id){ return document.getElementById(id); }
+function won(n){
+  const x = Number(n);
+  if(!isFinite(x)) return "-";
+  return Math.round(x).toLocaleString("ko-KR") + "원";
+}
+function num(v, d=0){
+  const n = Number(v);
+  return Number.isFinite(n) ? n : d;
+}
+function ceilUnit(v, unit=100){
+  v = num(v,0); unit = Math.max(1,num(unit,100));
+  return Math.ceil(v/unit)*unit;
+}
+function toDateOnlyString(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,"0");
+  const d = String(date.getDate()).padStart(2,"0");
+  return `${y}-${m}-${d}`;
+}
+function parseDate(s){
+  if(!s) return null;
+  const d = new Date(s + "T00:00:00");
+  return isNaN(d.getTime()) ? null : d;
+}
+function daysDiff(a,b){ // b-a in days
+  const ms = 24*60*60*1000;
+  return Math.floor((b.setHours(0,0,0,0)-a.setHours(0,0,0,0))/ms);
+}
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[c]));
+}
+function todayStr(){
+  return toDateOnlyString(new Date());
+}
+function clone(obj){
+  return JSON.parse(JSON.stringify(obj));
+}
+function csvEscape(v){
+  const s = String(v ?? "");
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+  return s;
+}
+function policyFeeBaseLabel(v){
+  return v === "discount_price" ? "할인가" : "정상가";
+}
+
+/* ===========================
+   데이터 기본값
+=========================== */
+const DEFAULT_DATA = {
+  costOptions: {
+    shipping: { "기본":0, "S":2100, "A":2200, "B":2670, "C":3250, "D":5000, "E":5500 },
+    insulation: { "기본":0, "S":1200, "A-1":1500, "A-2":1900, "B (3번, 달인2k)":2400, "C (4번, 별가3k)":3400, "D":5500 },
+    styro: { "기본":0, "S":1000, "A":1300, "B":2100, "C":4200, "D":5000, "E":5500 },
+    normalBox: { "기본":0, "S":350, "A":500 }
+  },
+  channelPolicies: [
+    { id: uid(), channel:"지마켓", feeRate:0.15, feeBase:"normal_price" },
+    { id: uid(), channel:"옥션", feeRate:0.15, feeBase:"normal_price" },
+    { id: uid(), channel:"11번가", feeRate:0.15, feeBase:"normal_price" },
+    { id: uid(), channel:"쿠팡", feeRate:0.15, feeBase:"normal_price" },
+    { id: uid(), channel:"네이버", feeRate:0.07, feeBase:"discount_price" },
+    { id: uid(), channel:"카페24", feeRate:0.05, feeBase:"normal_price" }
+  ],
+  runtimeSettings: {
+    minMarginRatePct: 3,
+    minMarginAmt: 500,
+    baseChannel: "지마켓",
+    soonDays: 3
+  },
+  calcDraft: {
+    productName: "",
+    baseCost: 7552,
+    qty: 1,
+    costVatMode: "vat_excluded",   // VAT 입력 방식
+    vatRate: 0.10,
+    guardPreset: "0.10",           // 5/10/15/custom
+    discountGuardRate: 0.10,       // 실제 계산에 들어갈 보정 마진율
+    insulationType: "기본",
+    styroType: "S",
+    shippingType: "기본",
+    normalBoxType: "기본",
+    extraMatCost: 0,
+    roundUnit: 100
+  },
+  calcLastResult: null,
+  opsRows: [],
+  changeLog: [] // {rowId, changedAt}
+};
+
+const STORAGE_KEY = "price_ops_dashboard_v2";
+
+/* ===========================
+   상태 로드/세이브
+=========================== */
+let state = loadState();
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return structuredClone(DEFAULT_DATA);
+    const parsed = JSON.parse(raw);
+
+    const s = structuredClone(DEFAULT_DATA);
+    Object.assign(s, parsed);
+    s.costOptions = parsed.costOptions || s.costOptions;
+    s.channelPolicies = parsed.channelPolicies || s.channelPolicies;
+    s.runtimeSettings = Object.assign({}, s.runtimeSettings, parsed.runtimeSettings || {});
+    s.calcDraft = Object.assign({}, s.calcDraft, parsed.calcDraft || {});
+    s.calcLastResult = parsed.calcLastResult ?? null;
+    s.opsRows = parsed.opsRows || [];
+    s.changeLog = parsed.changeLog || [];
+    return s;
+  } catch(e){
+    console.error(e);
+    return structuredClone(DEFAULT_DATA);
+  }
+}
+
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+/* ===========================
+   계산 엔진
+=========================== */
+function computeCostBaseFromDraft(draft){
+  const baseCost = num(draft.baseCost);
+  const qty = Math.max(1, num(draft.qty,1));
+  const vatRate = num(draft.vatRate,0.1);
+  const discountGuardRate = num(draft.discountGuardRate,0.1);
+  const extraMatCost = Math.max(0, num(draft.extraMatCost,0));
+  const costVatMode = draft.costVatMode || "vat_excluded";
+
+  // VAT 포함/비포함 선택 반영
+  const vatIncludedCostPerUnit =
+    costVatMode === "vat_included"
+      ? baseCost
+      : baseCost * (1 + vatRate);
+
+  // /0.95 /0.90 /0.85 같은 보정
+  const guardDenom = 1 - discountGuardRate;
+  const guardedUnitCost = guardDenom > 0 ? vatIncludedCostPerUnit / guardDenom : Infinity;
+
+  const insulationCost = num(state.costOptions.insulation[draft.insulationType],0);
+  const styroCost = num(state.costOptions.styro[draft.styroType],0);
+  const shippingCost = num(state.costOptions.shipping[draft.shippingType],0);
+  const normalBoxCost = num(state.costOptions.normalBox[draft.normalBoxType],0);
+  const packageShippingTotal = insulationCost + styroCost + shippingCost + normalBoxCost + extraMatCost;
+
+  const totalCost = guardedUnitCost * qty + packageShippingTotal;
+
+  return {
+    baseCost, qty, vatRate, discountGuardRate, costVatMode,
+    vatIncludedCostPerUnit,
+    guardedUnitCost,
+    packageShippingTotal,
+    totalCost,
+    breakdown: {
+      insulationCost, styroCost, shippingCost, normalBoxCost, extraMatCost
+    }
+  };
+}
+
+function computeChannelBreakEven(totalCost, policy, targetMarginRate=0, roundUnit=100){
+  const feeRate = num(policy.feeRate,0);
+  const denom = 1 - feeRate;
+  if(denom <= 0) return Infinity;
+  const sell = totalCost * (1 + targetMarginRate) / denom;
+  return ceilUnit(sell, roundUnit);
+}
+
+function calcDiscountedPrice(normalPrice, discountType, discountValue){
+  normalPrice = num(normalPrice,0);
+  discountValue = num(discountValue,0);
+  if(discountType === "fixed"){
+    return Math.max(0, normalPrice - discountValue);
+  }
+  if(discountType === "rate"){
+    return Math.max(0, normalPrice * (1 - discountValue/100));
+  }
+  return normalPrice;
+}
+
+function computeOpsRowDerived(row){
+  const totalCost = num(row.totalCost,0);
+  const normalPrice = num(row.normalPrice,0);
+  const basePrice = num(row.basePrice,0);
+  const discountType = row.discountType || "none";
+  const discountValue = num(row.discountValue,0);
+
+  const policy = state.channelPolicies.find(p => p.channel === row.channel);
+  const feeRate = policy ? num(policy.feeRate,0) : num(row.feeRate,0);
+  const feeBase = policy ? policy.feeBase : (row.feeBase || "normal_price");
+
+  const discountPriceRaw = calcDiscountedPrice(normalPrice, discountType, discountValue);
+  const discountPrice = Math.round(discountPriceRaw);
+
+  const feeBasePrice = feeBase === "discount_price" ? discountPrice : normalPrice;
+  const feeAmount = feeBasePrice * feeRate;
+
+  const settlement = discountPrice - feeAmount;
+  const marginAmt = settlement - totalCost;
+  const marginRate = discountPrice > 0 ? (marginAmt / discountPrice) * 100 : 0;
+
+  const status = getDateStatus(row.startDate, row.endDate, state.runtimeSettings.soonDays);
+
+  const minMarginRatePct = num(state.runtimeSettings.minMarginRatePct,3);
+  const minMarginAmt = num(state.runtimeSettings.minMarginAmt,500);
+  const isRisk = (marginRate < minMarginRatePct) || (marginAmt < minMarginAmt);
+
+  const baseDiffAmt = discountPrice - basePrice;
+  const baseDiffRate = basePrice > 0 ? (baseDiffAmt / basePrice) * 100 : 0;
+
+  return {
+    feeRate, feeBase,
+    discountPrice,
+    feeAmount,
+    settlement,
+    marginAmt,
+    marginRate,
+    status,
+    isRisk,
+    baseDiffAmt,
+    baseDiffRate
+  };
+}
+
+function getDateStatus(startDateStr, endDateStr, soonDays=3){
+  const today = parseDate(todayStr());
+  const s = parseDate(startDateStr);
+  const e = parseDate(endDateStr);
+
+  if(!s && !e) return "상시";
+  if(s && today < s) return "예정";
+  if(e){
+    if(today > e) return "종료";
+    const d = daysDiff(new Date(today), new Date(e));
+    if(d >= 0 && d <= num(soonDays,3)) return "종료임박";
+  }
+  return "진행중";
+}
+
+/* ===========================
+   탭 전환
+=========================== */
+document.querySelectorAll(".tab").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    const tab = btn.dataset.tab;
+    document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+    $("section-"+tab).classList.add("active");
+
+    if(tab === "ops") renderOpsTable();
+    if(tab === "schedule") renderScheduleTable();
+    if(tab === "settings") renderSettings();
+  });
+});
+
+/* ===========================
+   계산 탭 렌더/이벤트
+=========================== */
+function fillSelect(id, obj, selected){
+  const el = $(id);
+  el.innerHTML = "";
+  Object.keys(obj).forEach(k=>{
+    const o = document.createElement("option");
+    o.value = k;
+    o.textContent = `${k} (+${won(obj[k])})`;
+    if(k === selected) o.selected = true;
+    el.appendChild(o);
+  });
+}
+
+function fillCostOptionSelects(){
+  fillSelect("calcInsulationType", state.costOptions.insulation, state.calcDraft.insulationType);
+  fillSelect("calcStyroType", state.costOptions.styro, state.calcDraft.styroType);
+  fillSelect("calcShippingType", state.costOptions.shipping, state.calcDraft.shippingType);
+  fillSelect("calcNormalBoxType", state.costOptions.normalBox, state.calcDraft.normalBoxType);
+}
+
+function syncGuardPresetUI(){
+  const preset = $("calcGuardPreset").value;
+  const input = $("calcDiscountGuardRate");
+  const isCustom = preset === "custom";
+
+  input.disabled = !isCustom;
+  input.style.background = isCustom ? "#fff" : "#f3f4f6";
+
+  if (!isCustom) {
+    input.value = Number(preset).toFixed(2);
+  }
+}
+
+function loadCalcDraftToUI(){
+  const d = state.calcDraft;
+  $("calcProductName").value = d.productName || "";
+  $("calcBaseCost").value = d.baseCost;
+  $("calcQty").value = d.qty;
+  $("calcCostVatMode").value = d.costVatMode || "vat_excluded";
+  $("calcVatRate").value = d.vatRate;
+  $("calcGuardPreset").value = d.guardPreset || "0.10";
+  $("calcDiscountGuardRate").value = d.discountGuardRate;
+  $("calcExtraMatCost").value = d.extraMatCost || 0;
+  $("calcRoundUnit").value = String(d.roundUnit || 100);
+  fillCostOptionSelects();
+  syncGuardPresetUI();
+}
+
+function readCalcDraftFromUI(){
+  const guardPreset = $("calcGuardPreset").value;
+
+  let guardRate = num($("calcDiscountGuardRate").value, 0.10);
+  if (guardPreset !== "custom") {
+    guardRate = num(guardPreset, 0.10);
+  }
+
+  state.calcDraft = {
+    productName: $("calcProductName").value.trim(),
+    baseCost: num($("calcBaseCost").value,0),
+    qty: Math.max(1, num($("calcQty").value,1)),
+    costVatMode: $("calcCostVatMode").value,
+    vatRate: num($("calcVatRate").value,0.1),
+    guardPreset: guardPreset,
+    discountGuardRate: guardRate,
+    insulationType: $("calcInsulationType").value,
+    styroType: $("calcStyroType").value,
+    shippingType: $("calcShippingType").value,
+    normalBoxType: $("calcNormalBoxType").value,
+    extraMatCost: num($("calcExtraMatCost").value,0),
+    roundUnit: num($("calcRoundUnit").value,100)
+  };
+  saveState();
+}
+
+function renderCalcResult(){
+  readCalcDraftFromUI();
+  const d = state.calcDraft;
+  const costBase = computeCostBaseFromDraft(d);
+  const roundUnit = num(d.roundUnit,100);
+
+  const kpis = [
+    ["VAT 포함 원가(1개)", won(costBase.vatIncludedCostPerUnit)],
+    ["보정 원가(1개)", won(costBase.guardedUnitCost)],
+    ["포장/배송 합계", won(costBase.packageShippingTotal)],
+    ["총원가(묶음)", won(costBase.totalCost)]
+  ];
+  $("calcKpis").innerHTML = kpis.map(([t,v]) => `
+    <div class="kpi">
+      <div class="t">${escapeHtml(t)}</div>
+      <div class="v">${escapeHtml(v)}</div>
+    </div>
+  `).join("");
+
+  const tbody = $("calcResultTable");
+  tbody.innerHTML = "";
+  state.channelPolicies.forEach(p=>{
+    const be = computeChannelBreakEven(costBase.totalCost, p, 0, roundUnit);
+    const m5 = computeChannelBreakEven(costBase.totalCost, p, 0.05, roundUnit);
+    const m10 = computeChannelBreakEven(costBase.totalCost, p, 0.10, roundUnit);
+    const m15 = computeChannelBreakEven(costBase.totalCost, p, 0.15, roundUnit);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(p.channel)}</td>
+      <td>${(num(p.feeRate,0)*100).toFixed(1)}%</td>
+      <td>${policyFeeBaseLabel(p.feeBase)}</td>
+      <td class="right">${won(be)}</td>
+      <td class="right">${won(m5)}</td>
+      <td class="right">${won(m10)}</td>
+      <td class="right">${won(m15)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const modeLabel = d.costVatMode === "vat_included" ? "VAT 포함가" : "VAT 비포함가";
+  const summary = [
+    `상품명: ${d.productName || "(미입력)"}`,
+    `원가 입력값: ${won(d.baseCost)} (${modeLabel})`,
+    `VAT율: ${(d.vatRate*100).toFixed(1)}%`,
+    `VAT 포함 기준 원가(1개): ${won(costBase.vatIncludedCostPerUnit)}`,
+    `기본 계산 마진율(보정): ${(d.discountGuardRate*100).toFixed(1)}% (/${(1-d.discountGuardRate).toFixed(2)})`,
+    `수량(묶음): ${d.qty}`,
+    `포장/배송비 합계: ${won(costBase.packageShippingTotal)}`,
+    `  - 보냉박스: ${won(costBase.breakdown.insulationCost)}`,
+    `  - 스티로폼: ${won(costBase.breakdown.styroCost)}`,
+    `  - 배송비: ${won(costBase.breakdown.shippingCost)}`,
+    `  - 실온박스: ${won(costBase.breakdown.normalBoxCost)}`,
+    `  - 추가부자재비: ${won(costBase.breakdown.extraMatCost)}`,
+    `총원가(운영 기준): ${won(costBase.totalCost)}`
+  ].join("\n");
+  $("calcSummary").value = summary;
+
+  state.calcLastResult = {
+    draft: clone(d),
+    costBase,
+    createdAt: new Date().toISOString()
+  };
+  saveState();
+}
+
+function calcToOpsRow(channelName){
+  const last = state.calcLastResult;
+  if(!last){
+    alert("먼저 계산하기를 눌러주세요.");
+    return;
+  }
+  const totalCost = Math.round(last.costBase.totalCost);
+  const baseChannel = state.runtimeSettings.baseChannel || "지마켓";
+  const roundUnit = num(last.draft.roundUnit,100);
+
+  const basePolicy = state.channelPolicies.find(p => p.channel === baseChannel) || state.channelPolicies[0];
+  const suggestedBasePrice = computeChannelBreakEven(totalCost, basePolicy, 0.10, roundUnit); // 기준 10% 목표마진 추천
+
+  const defaultChannel = channelName || baseChannel;
+  const policy = state.channelPolicies.find(p => p.channel === defaultChannel) || state.channelPolicies[0];
+
+  let normalPrice = suggestedBasePrice;
+  let discountType = "none";
+  let discountValue = 0;
+
+  if(defaultChannel === "네이버"){
+    normalPrice = suggestedBasePrice;
+    discountType = "fixed";
+    discountValue = 1300;
+  }
+
+  const row = {
+    id: uid(),
+    productName: last.draft.productName || "새 상품",
+    channel: defaultChannel,
+    totalCost: totalCost,
+    basePrice: suggestedBasePrice,
+    normalPrice: normalPrice,
+    discountType: discountType,
+    discountValue: discountValue,
+    feeRate: policy.feeRate,
+    feeBase: policy.feeBase,
+    startDate: todayStr(),
+    endDate: "",
+    memo: "",
+    updatedAt: new Date().toISOString()
+  };
+
+  state.opsRows.unshift(row);
+  state.changeLog.push({ rowId: row.id, changedAt: new Date().toISOString(), action:"create" });
+  saveState();
+  renderOpsTable();
+  alert(`운영표에 추가됨 (${defaultChannel})`);
+}
+
+/* ===========================
+   운영표 렌더/이벤트
+=========================== */
+function renderChannelFilterOptions(){
+  const channels = [...new Set(state.channelPolicies.map(p=>p.channel))];
+  const targets = ["opsFilterChannel","scheduleChannelFilter","settingsBaseChannel"];
+  targets.forEach(id=>{
+    const sel = $(id);
+    if(!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = id === "settingsBaseChannel" ? "" : '<option value="">전체</option>';
+    channels.forEach(ch=>{
+      const o = document.createElement("option");
+      o.value = ch; o.textContent = ch;
+      if(ch === cur) o.selected = true;
+      sel.appendChild(o);
+    });
+    if(id === "settingsBaseChannel"){
+      sel.value = state.runtimeSettings.baseChannel || channels[0] || "";
+    }
+  });
+}
+
+function statusPillHtml(status, isRisk){
+  let cls = "ended";
+  if(status === "진행중") cls = "active";
+  else if(status === "상시") cls = "active";
+  else if(status === "예정") cls = "scheduled";
+  else if(status === "종료임박") cls = "soon";
+  else if(status === "종료") cls = "ended";
+
+  return `
+    <div class="inline-actions">
+      <span class="pill ${cls}">${status}</span>
+      ${isRisk ? '<span class="pill risk">마진위험</span>' : ''}
+    </div>
+  `;
+}
+function channelSelectHtml(rowId, selected){
+  const opts = state.channelPolicies.map(p=>{
+    const ch = p.channel;
+    return `<option value="${escapeHtml(ch)}" ${ch===selected?'selected':''}>${escapeHtml(ch)}</option>`;
+  }).join("");
+  return `<select class="ops-channel" data-id="${rowId}" style="min-width:90px;">${opts}</select>`;
+}
+function discountTypeSelectHtml(rowId, selected){
+  const list = [
+    ["none","없음"],
+    ["fixed","정액(-원)"],
+    ["rate","정률(%)"]
+  ];
+  const opts = list.map(([v,l])=>`<option value="${v}" ${v===selected?'selected':''}>${l}</option>`).join("");
+  return `<select class="ops-discount-type" data-id="${rowId}" style="min-width:90px;">${opts}</select>`;
+}
+
+function findRowById(id){
+  return state.opsRows.find(r=>r.id===id);
+}
+
+function markChanged(rowId, action="update"){
+  const now = new Date().toISOString();
+  state.changeLog.push({ rowId, changedAt: now, action });
+  const row = findRowById(rowId);
+  if(row) row.updatedAt = now;
+}
+
+function onOpsCellChange(e, opt={reRender:true}){
+  const target = e.target;
+  const rowId = target.dataset.id;
+  const field = target.dataset.field;
+  const row = findRowById(rowId);
+  if(!row) return;
+
+  let v = target.value;
+  if(["totalCost","basePrice","normalPrice","discountValue"].includes(field)) v = num(v,0);
+  row[field] = v;
+  markChanged(rowId);
+  saveState();
+
+  if(opt.reRender !== false) renderOpsTable();
+}
+function onOpsChannelChange(e){
+  const rowId = e.target.dataset.id;
+  const row = findRowById(rowId);
+  if(!row) return;
+  row.channel = e.target.value;
+
+  const policy = state.channelPolicies.find(p=>p.channel===row.channel);
+  if(policy){
+    row.feeRate = policy.feeRate;
+    row.feeBase = policy.feeBase;
+  }
+  markChanged(rowId);
+  saveState();
+  renderOpsTable();
+}
+function onOpsDiscountTypeChange(e){
+  const rowId = e.target.dataset.id;
+  const row = findRowById(rowId);
+  if(!row) return;
+  row.discountType = e.target.value;
+  if(row.discountType === "none") row.discountValue = 0;
+  markChanged(rowId);
+  saveState();
+  renderOpsTable();
+}
+
+window.duplicateRow = function(rowId){
+  const row = findRowById(rowId);
+  if(!row) return;
+  const newRow = clone(row);
+  newRow.id = uid();
+  newRow.memo = (row.memo ? row.memo + " / " : "") + "복제";
+  newRow.updatedAt = new Date().toISOString();
+  state.opsRows.unshift(newRow);
+  markChanged(newRow.id, "duplicate");
+  saveState();
+  renderOpsTable();
+};
+window.deleteRow = function(rowId){
+  if(!confirm("이 행 삭제할까?")) return;
+  state.opsRows = state.opsRows.filter(r=>r.id!==rowId);
+  state.changeLog.push({ rowId, changedAt:new Date().toISOString(), action:"delete" });
+  saveState();
+  renderOpsTable();
+};
+
+function renderOpsTable(){
+  renderChannelFilterOptions();
+
+  const keyword = $("opsFilterKeyword").value.trim().toLowerCase();
+  const channelFilter = $("opsFilterChannel").value;
+  const statusFilter = $("opsFilterStatus").value;
+  const riskFilter = $("opsFilterRisk").value;
+
+  const tbody = $("opsTableBody");
+  tbody.innerHTML = "";
+
+  const rows = state.opsRows.filter(row=>{
+    const d = computeOpsRowDerived(row);
+    if(keyword && !String(row.productName).toLowerCase().includes(keyword)) return false;
+    if(channelFilter && row.channel !== channelFilter) return false;
+    if(statusFilter && d.status !== statusFilter) return false;
+    if(riskFilter === "위험만" && !d.isRisk) return false;
+    if(riskFilter === "정상만" && d.isRisk) return false;
+    return true;
+  });
+
+  rows.forEach(row=>{
+    const d = computeOpsRowDerived(row);
+    const statusHtml = statusPillHtml(d.status, d.isRisk);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><input type="checkbox" class="ops-select" data-id="${row.id}" /></td>
+      <td><input data-field="productName" data-id="${row.id}" value="${escapeHtml(row.productName)}" /></td>
+      <td>${channelSelectHtml(row.id, row.channel)}</td>
+      <td class="right"><input class="right-input" type="number" data-field="totalCost" data-id="${row.id}" value="${num(row.totalCost,0)}" /></td>
+      <td class="right"><input class="right-input" type="number" data-field="basePrice" data-id="${row.id}" value="${num(row.basePrice,0)}" /></td>
+      <td class="right"><input class="right-input" type="number" data-field="normalPrice" data-id="${row.id}" value="${num(row.normalPrice,0)}" /></td>
+      <td>${discountTypeSelectHtml(row.id, row.discountType || "none")}</td>
+      <td class="right"><input class="right-input" type="number" data-field="discountValue" data-id="${row.id}" value="${num(row.discountValue,0)}" /></td>
+      <td class="right">${won(d.discountPrice)}</td>
+      <td class="right">${(d.feeRate*100).toFixed(1)}%</td>
+      <td>${policyFeeBaseLabel(d.feeBase)}</td>
+      <td class="right">${won(d.settlement)}</td>
+      <td class="right ${d.marginAmt < 0 ? 'danger' : ''}">${won(d.marginAmt)}</td>
+      <td class="right ${d.isRisk ? 'danger' : 'ok'}">${d.marginRate.toFixed(1)}%</td>
+      <td><input type="date" data-field="startDate" data-id="${row.id}" value="${row.startDate || ''}" /></td>
+      <td><input type="date" data-field="endDate" data-id="${row.id}" value="${row.endDate || ''}" /></td>
+      <td>${statusHtml}</td>
+      <td><input data-field="memo" data-id="${row.id}" value="${escapeHtml(row.memo || '')}" /></td>
+      <td>
+        <div class="inline-actions">
+          <button class="btn-secondary small" onclick="duplicateRow('${row.id}')">복제</button>
+          <button class="btn-secondary small" onclick="deleteRow('${row.id}')">삭제</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("input[data-field], select[data-field]").forEach(el=>{
+    el.addEventListener("change", onOpsCellChange);
+    el.addEventListener("input", (e)=>{
+      const f = e.target.dataset.field;
+      if(f === "productName" || f === "memo"){
+        onOpsCellChange(e, {reRender:false});
+      }
+    });
+  });
+
+  tbody.querySelectorAll("select.ops-channel").forEach(el=>{
+    el.addEventListener("change", onOpsChannelChange);
+  });
+  tbody.querySelectorAll("select.ops-discount-type").forEach(el=>{
+    el.addEventListener("change", onOpsDiscountTypeChange);
+  });
+}
+
+function addBlankOpsRow(){
+  const baseChannel = state.runtimeSettings.baseChannel || "지마켓";
+  const policy = state.channelPolicies.find(p=>p.channel===baseChannel) || state.channelPolicies[0];
+  state.opsRows.unshift({
+    id: uid(),
+    productName: "새 상품",
+    channel: baseChannel,
+    totalCost: 0,
+    basePrice: 0,
+    normalPrice: 0,
+    discountType: "none",
+    discountValue: 0,
+    feeRate: policy?.feeRate ?? 0,
+    feeBase: policy?.feeBase ?? "normal_price",
+    startDate: todayStr(),
+    endDate: "",
+    memo: "",
+    updatedAt: new Date().toISOString()
+  });
+  markChanged(state.opsRows[0].id, "create_blank");
+  saveState();
+  renderOpsTable();
+}
+
+function getSelectedRowIds(){
+  return [...document.querySelectorAll(".ops-select:checked")].map(x=>x.dataset.id);
+}
+function duplicateSelectedRows(){
+  const ids = getSelectedRowIds();
+  if(!ids.length){ alert("선택된 행이 없음"); return; }
+  const list = ids.map(id => findRowById(id)).filter(Boolean);
+  list.reverse().forEach(row=>{
+    const n = clone(row); n.id = uid(); n.updatedAt = new Date().toISOString();
+    n.memo = (n.memo ? n.memo + " / " : "") + "복제";
+    state.opsRows.unshift(n);
+    markChanged(n.id, "duplicate");
+  });
+  saveState();
+  renderOpsTable();
+}
+function deleteSelectedRows(){
+  const ids = getSelectedRowIds();
+  if(!ids.length){ alert("선택된 행이 없음"); return; }
+  if(!confirm(`선택 ${ids.length}개 행 삭제할까?`)) return;
+  state.opsRows = state.opsRows.filter(r=>!ids.includes(r.id));
+  ids.forEach(id=>state.changeLog.push({ rowId:id, changedAt:new Date().toISOString(), action:"delete" }));
+  saveState();
+  renderOpsTable();
+}
+
+function exportOpsCsv({todayOnly=false}={}){
+  const today = todayStr();
+  let rows = state.opsRows;
+
+  if(todayOnly){
+    const todayChangedIds = new Set(
+      state.changeLog
+        .filter(log => String(log.changedAt).slice(0,10) === today)
+        .map(log => log.rowId)
+    );
+    rows = rows.filter(r => todayChangedIds.has(r.id));
+  }
+
+  const headers = [
+    "상품명","채널","총원가","기준가","정상가","할인방식","할인값","할인가","수수료율","수수료기준","실수령예상","마진액","마진률","시작일","종료일","상태","메모"
+  ];
+  const lines = [headers.join(",")];
+  rows.forEach(r=>{
+    const d = computeOpsRowDerived(r);
+    const row = [
+      r.productName, r.channel, Math.round(num(r.totalCost,0)), Math.round(num(r.basePrice,0)),
+      Math.round(num(r.normalPrice,0)), r.discountType, num(r.discountValue,0), Math.round(d.discountPrice),
+      (d.feeRate*100).toFixed(1)+"%", policyFeeBaseLabel(d.feeBase), Math.round(d.settlement),
+      Math.round(d.marginAmt), d.marginRate.toFixed(1)+"%", r.startDate||"", r.endDate||"", d.status, r.memo||""
+    ];
+    lines.push(row.map(csvEscape).join(","));
+  });
+
+  downloadText(lines.join("\n"), todayOnly ? `운영표_오늘변경분_${today}.csv` : `운영표_${today}.csv`, "text/csv;charset=utf-8;");
+}
+
+function downloadText(text, filename, mime="text/plain;charset=utf-8;"){
+  const blob = new Blob([text], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ===========================
+   일정 탭 렌더
+=========================== */
+function renderScheduleTable(){
+  renderChannelFilterOptions();
+  const mode = $("scheduleViewMode").value;
+  const channel = $("scheduleChannelFilter").value;
+  const keyword = $("scheduleKeyword").value.trim().toLowerCase();
+  const soonDays = num(state.runtimeSettings.soonDays,3);
+  const today = parseDate(todayStr());
+
+  const rows = state.opsRows
+    .map(r => ({ r, d: computeOpsRowDerived(r) }))
+    .filter(({r,d})=>{
+      if(channel && r.channel !== channel) return false;
+      if(keyword && !String(r.productName).toLowerCase().includes(keyword)) return false;
+
+      if(mode === "active") return d.status === "진행중" || d.status === "상시" || d.status === "종료임박";
+      if(mode === "scheduled") return d.status === "예정";
+      if(mode === "today_end"){
+        const e = parseDate(r.endDate);
+        return !!e && toDateOnlyString(e) === todayStr();
+      }
+      if(mode === "soon_end"){
+        const e = parseDate(r.endDate);
+        if(!e) return false;
+        const diff = daysDiff(new Date(today), new Date(e));
+        return diff >= 0 && diff <= soonDays;
+      }
+      return true;
+    })
+    .sort((a,b)=>{
+      const ae = parseDate(a.r.endDate) || new Date("2999-12-31");
+      const be = parseDate(b.r.endDate) || new Date("2999-12-31");
+      return ae - be;
+    });
+
+  const tbody = $("scheduleTableBody");
+  tbody.innerHTML = "";
+
+  rows.forEach(({r,d})=>{
+    const e = parseDate(r.endDate);
+    let remainTxt = "-";
+    if(e){
+      const diff = daysDiff(new Date(today), new Date(e));
+      if(diff < 0) remainTxt = `${Math.abs(diff)}일 지남`;
+      else remainTxt = `D-${diff}`;
+    }
+    const period = `${r.startDate || "-"} ~ ${r.endDate || "상시"}`;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${statusPillHtml(d.status, d.isRisk)}</td>
+      <td>${escapeHtml(r.productName)}</td>
+      <td>${escapeHtml(r.channel)}</td>
+      <td class="right">${won(r.normalPrice)}</td>
+      <td class="right">${won(d.discountPrice)}</td>
+      <td>${escapeHtml(period)}</td>
+      <td>${escapeHtml(remainTxt)}</td>
+      <td class="right ${d.isRisk?'danger':'ok'}">${d.marginRate.toFixed(1)}%</td>
+      <td>${escapeHtml(r.memo || "")}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ===========================
+   설정 탭 렌더/이벤트
+=========================== */
+window.deletePolicy = function(idx){
+  if(state.channelPolicies.length <= 1){ alert("최소 1개 채널은 있어야 함"); return; }
+  state.channelPolicies.splice(idx,1);
+  saveState();
+  renderSettings();
+};
+
+function renderSettings(){
+  renderChannelFilterOptions();
+
+  const wrap = $("settingsChannelPolicies");
+  wrap.innerHTML = "";
+  state.channelPolicies.forEach((p, idx)=>{
+    const row = document.createElement("div");
+    row.className = "row";
+    row.style.marginBottom = "8px";
+    row.innerHTML = `
+      <input data-idx="${idx}" data-k="channel" value="${escapeHtml(p.channel)}" placeholder="채널명" />
+      <input data-idx="${idx}" data-k="feeRate" type="number" min="0" max="0.99" step="0.01" value="${num(p.feeRate,0).toFixed(2)}" />
+      <select data-idx="${idx}" data-k="feeBase">
+        <option value="normal_price" ${p.feeBase==="normal_price"?"selected":""}>정상가 기준</option>
+        <option value="discount_price" ${p.feeBase==="discount_price"?"selected":""}>할인가 기준</option>
+      </select>
+      <button class="btn-secondary" type="button" onclick="deletePolicy(${idx})">삭제</button>
+    `;
+    wrap.appendChild(row);
+  });
+
+  $("settingsCostOptionsJson").value = JSON.stringify(state.costOptions, null, 2);
+
+  $("settingsMinMarginRate").value = num(state.runtimeSettings.minMarginRatePct,3);
+  $("settingsMinMarginAmt").value = num(state.runtimeSettings.minMarginAmt,500);
+  $("settingsSoonDays").value = num(state.runtimeSettings.soonDays,3);
+  $("settingsBaseChannel").value = state.runtimeSettings.baseChannel || "";
+}
+
+function savePoliciesFromUI(){
+  const rows = $("settingsChannelPolicies").querySelectorAll(".row");
+  const next = [];
+  rows.forEach((rowEl)=>{
+    const channel = rowEl.querySelector('[data-k="channel"]').value.trim();
+    const feeRate = num(rowEl.querySelector('[data-k="feeRate"]').value,0);
+    const feeBase = rowEl.querySelector('[data-k="feeBase"]').value;
+    if(!channel) return;
+    next.push({ id: uid(), channel, feeRate, feeBase });
+  });
+  if(!next.length){
+    alert("채널 정책이 비어있음");
+    return;
+  }
+  state.channelPolicies = next;
+  state.opsRows.forEach(r=>{
+    const p = state.channelPolicies.find(x=>x.channel===r.channel);
+    if(p){ r.feeRate = p.feeRate; r.feeBase = p.feeBase; }
+  });
+  saveState();
+  fillCostOptionSelects();
+  renderCalcResult();
+  renderSettings();
+  renderOpsTable();
+  alert("채널 정책 저장됨");
+}
+
+function addPolicy(){
+  state.channelPolicies.push({ id:uid(), channel:"새 채널", feeRate:0.10, feeBase:"normal_price" });
+  saveState();
+  renderSettings();
+}
+
+function applyCostOptionsFromJson(){
+  try{
+    const obj = JSON.parse($("settingsCostOptionsJson").value);
+    ["shipping","insulation","styro","normalBox"].forEach(k=>{
+      if(!obj[k] || typeof obj[k] !== "object") throw new Error(`${k} 형식 오류`);
+    });
+    state.costOptions = obj;
+    saveState();
+    fillCostOptionSelects();
+    renderCalcResult();
+    alert("옵션 테이블 저장됨");
+  } catch(e){
+    alert("JSON 오류: " + e.message);
+  }
+}
+function resetCostOptions(){
+  state.costOptions = clone(DEFAULT_DATA.costOptions);
+  saveState();
+  renderSettings();
+  fillCostOptionSelects();
+  renderCalcResult();
+  alert("기본값 복원됨");
+}
+function saveRuntimeSettings(){
+  state.runtimeSettings.minMarginRatePct = num($("settingsMinMarginRate").value,3);
+  state.runtimeSettings.minMarginAmt = num($("settingsMinMarginAmt").value,500);
+  state.runtimeSettings.baseChannel = $("settingsBaseChannel").value || state.channelPolicies[0]?.channel || "지마켓";
+  state.runtimeSettings.soonDays = Math.max(1, num($("settingsSoonDays").value,3));
+  saveState();
+  renderOpsTable();
+  renderScheduleTable();
+  alert("운영 기준 저장됨");
+}
+
+/* ===========================
+   백업/복원
+=========================== */
+function exportJsonBackup(){
+  downloadText(JSON.stringify(state, null, 2), `가격운영대시보드_백업_${todayStr()}.json`, "application/json;charset=utf-8;");
+}
+function importJsonBackup(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed || typeof parsed !== "object") throw new Error("JSON 형식 오류");
+      state = parsed;
+      saveState();
+      initAll();
+      alert("불러오기 완료");
+    } catch(e){
+      alert("불러오기 실패: " + e.message);
+    }
+  };
+  reader.readAsText(file, "utf-8");
+}
+
+/* ===========================
+   운영표 일괄 액션
+=========================== */
+function getSelectedRowIds(){
+  return [...document.querySelectorAll(".ops-select:checked")].map(x=>x.dataset.id);
+}
+function duplicateSelectedRows(){
+  const ids = getSelectedRowIds();
+  if(!ids.length){ alert("선택된 행이 없음"); return; }
+  const list = ids.map(id => findRowById(id)).filter(Boolean);
+  list.reverse().forEach(row=>{
+    const n = clone(row); n.id = uid(); n.updatedAt = new Date().toISOString();
+    n.memo = (n.memo ? n.memo + " / " : "") + "복제";
+    state.opsRows.unshift(n);
+    markChanged(n.id, "duplicate");
+  });
+  saveState();
+  renderOpsTable();
+}
+function deleteSelectedRows(){
+  const ids = getSelectedRowIds();
+  if(!ids.length){ alert("선택된 행이 없음"); return; }
+  if(!confirm(`선택 ${ids.length}개 행 삭제할까?`)) return;
+  state.opsRows = state.opsRows.filter(r=>!ids.includes(r.id));
+  ids.forEach(id=>state.changeLog.push({ rowId:id, changedAt:new Date().toISOString(), action:"delete" }));
+  saveState();
+  renderOpsTable();
+}
+
+/* ===========================
+   이벤트 바인딩
+=========================== */
+function bindEvents(){
+  // 계산 탭
+  [
+    "calcProductName","calcBaseCost","calcQty",
+    "calcCostVatMode","calcVatRate",
+    "calcGuardPreset","calcDiscountGuardRate",
+    "calcInsulationType","calcStyroType","calcShippingType","calcNormalBoxType",
+    "calcExtraMatCost","calcRoundUnit"
+  ].forEach(id => {
+    $(id).addEventListener("change", () => {
+      if(id === "calcGuardPreset") syncGuardPresetUI();
+      renderCalcResult();
+    });
+    $(id).addEventListener("input", () => {
+      if(["calcProductName","calcDiscountGuardRate"].includes(id)) renderCalcResult();
+    });
+  });
+
+  $("btnCalcRun").addEventListener("click", renderCalcResult);
+
+  $("btnCalcReset").addEventListener("click", ()=>{
+    state.calcDraft = clone(DEFAULT_DATA.calcDraft);
+    saveState();
+    loadCalcDraftToUI();
+    renderCalcResult();
+  });
+
+  $("btnCalcToOps").addEventListener("click", ()=>{
+    const addBoth = confirm("기준채널 행 + 네이버 행을 같이 추가할까?\n[확인]=둘 다 추가 / [취소]=기준채널만");
+    if(addBoth){
+      calcToOpsRow(state.runtimeSettings.baseChannel || "지마켓");
+      calcToOpsRow("네이버");
+    }else{
+      calcToOpsRow(state.runtimeSettings.baseChannel || "지마켓");
+    }
+  });
+
+  // 운영표 필터
+  ["opsFilterKeyword","opsFilterChannel","opsFilterStatus","opsFilterRisk"].forEach(id=>{
+    $(id).addEventListener("input", renderOpsTable);
+    $(id).addEventListener("change", renderOpsTable);
+  });
+
+  $("btnOpsAddBlank").addEventListener("click", addBlankOpsRow);
+  $("btnOpsDuplicateSelected").addEventListener("click", duplicateSelectedRows);
+  $("btnOpsDeleteSelected").addEventListener("click", deleteSelectedRows);
+  $("btnOpsExportCsv").addEventListener("click", ()=>exportOpsCsv({todayOnly:false}));
+  $("btnOpsExportTodayChanges").addEventListener("click", ()=>exportOpsCsv({todayOnly:true}));
+
+  // 일정 탭 필터
+  ["scheduleViewMode","scheduleChannelFilter","scheduleKeyword"].forEach(id=>{
+    $(id).addEventListener("input", renderScheduleTable);
+    $(id).addEventListener("change", renderScheduleTable);
+  });
+
+  // 설정 탭
+  $("btnAddPolicy").addEventListener("click", addPolicy);
+  $("btnSavePolicies").addEventListener("click", savePoliciesFromUI);
+  $("btnApplyCostOptions").addEventListener("click", applyCostOptionsFromJson);
+  $("btnResetCostOptions").addEventListener("click", resetCostOptions);
+  $("btnSaveRuntimeSettings").addEventListener("click", saveRuntimeSettings);
+
+  // 백업/복원
+  $("btnExportJson").addEventListener("click", exportJsonBackup);
+  $("btnImportJson").addEventListener("click", ()=>$("importJsonFile").click());
+  $("importJsonFile").addEventListener("change", (e)=>{
+    const file = e.target.files?.[0];
+    if(file) importJsonBackup(file);
+    e.target.value = "";
+  });
+
+  $("btnResetAll").addEventListener("click", ()=>{
+    if(!confirm("진짜 전체 데이터 초기화할까? (복구 어려움)")) return;
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("price_ops_dashboard_v1"); // 혹시 이전버전 키도 정리
+    localStorage.removeItem("price_ops_dashboard_v2");
+    state = structuredClone(DEFAULT_DATA);
+    saveState();
+    initAll();
+    alert("전체 초기화 완료");
+  });
+}
+
+/* ===========================
+   초기화
+=========================== */
+function initAll(){
+  loadCalcDraftToUI();
+  fillCostOptionSelects();
+  syncGuardPresetUI();
+  renderChannelFilterOptions();
+  renderCalcResult();
+  renderOpsTable();
+  renderScheduleTable();
+  bindEventsOnce();
+}
+
+let _bound = false;
+function bindEventsOnce(){
+  if(_bound) return;
+  _bound = true;
+  bindEvents();
+}
+
+// 최초 실행
+initAll();
+</script>
+</body>
+</html>
