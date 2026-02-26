@@ -39,7 +39,7 @@
     input, select, textarea, button{
       width:100%; border:1px solid #d1d5db; border-radius:10px; padding:9px 10px;
       font-size:13px; background:#fff;
-      writing-mode: horizontal-tb; /* 혹시라도 세로 깨짐 방지 */
+      writing-mode: horizontal-tb;
       text-orientation: mixed;
     }
     textarea{resize:vertical}
@@ -99,6 +99,14 @@
     .footer-note{margin-top:8px; font-size:11px; color:var(--muted);}
     .right-input{text-align:right;}
 
+    .checkline{
+      display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+      padding:10px; border:1px solid var(--line); border-radius:12px; background:#fff;
+    }
+    .checkline .item{display:flex; align-items:center; gap:8px; font-size:13px;}
+    .checkline input[type="checkbox"]{width:auto; transform:scale(1.1);}
+    .checkline .hint{font-size:12px; color:var(--muted);}
+
     @media (max-width: 980px){
       .grid{grid-template-columns:1fr;}
       .kpi-grid{grid-template-columns:repeat(2,1fr);}
@@ -109,8 +117,8 @@
 <div class="wrap">
   <div class="topbar">
     <div>
-      <h1>가격 운영 대시보드 (MVP)</h1>
-      <div class="sub">상품 원가 계산 + 채널별 가격/할인 운영 + 기간 관리 + 마진 경고</div>
+      <h1>가격 운영 대시보드 (MVP) - CHECKMARK + 10% ONLY 2026-02-26</h1>
+      <div class="sub">상품 원가 계산 + 채널별 가격/할인 운영 + 기간 관리 + 마진 경고 + 채널 반영 체크</div>
     </div>
     <div class="inline-actions">
       <button class="btn-secondary" id="btnExportJson">데이터 백업(JSON)</button>
@@ -162,23 +170,6 @@
           </div>
         </div>
 
-        <!-- 계산 보정 마진 프리셋 -->
-        <div class="row">
-          <div>
-            <label>기본 계산 마진 프리셋</label>
-            <select id="calcGuardPreset">
-              <option value="0.05">5% (/0.95)</option>
-              <option value="0.10" selected>10% (/0.90)</option>
-              <option value="0.15">15% (/0.85)</option>
-              <option value="custom">직접입력</option>
-            </select>
-          </div>
-          <div>
-            <label>기본 계산 마진율 (직접입력용)</label>
-            <input id="calcDiscountGuardRate" type="number" min="0" max="0.99" step="0.01" value="0.10" />
-          </div>
-        </div>
-
         <label>보냉박스 타입</label>
         <select id="calcInsulationType"></select>
 
@@ -208,12 +199,12 @@
 
         <div class="sticky-tools">
           <button class="btn" id="btnCalcRun">계산하기</button>
-          <button class="btn-secondary" id="btnCalcToOps">운영표에 추가</button>
+          <button class="btn-secondary" id="btnCalcToOps">운영표에 추가(지마켓+네이버+쿠팡)</button>
           <button class="btn-secondary" id="btnCalcReset">입력 초기화</button>
         </div>
 
         <div class="footer-note">
-          * 기본 계산 마진 프리셋은 “행사/쿠폰 감안해서 안전하게 보는 값” (엑셀의 /0.9 같은 개념)
+          * “기본 보정 마진(/0.90 같은 값)”은 <b>설정 탭</b>에서만 바꿀 수 있게 해뒀음. (상품계산 화면에서 헷갈린다 했으니까)
         </div>
       </div>
 
@@ -222,7 +213,14 @@
         <div class="kpi-grid" id="calcKpis"></div>
 
         <div style="margin-top:12px;">
-          <h2 style="margin-bottom:8px;">채널별 최소 판매가 / 목표마진 판매가</h2>
+          <h2 style="margin-bottom:8px;">채널 반영 체크 (이 상품 작업했는지)</h2>
+          <div class="checkline" id="calcApplyChecklist">
+            <div class="hint">* 먼저 “운영표에 추가”를 눌러야 체크가 연결됨</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <h2 style="margin-bottom:8px;">채널별 손익분기 / 마진 10% 목표가 (10%만 표시)</h2>
           <div class="table-wrap" style="max-height:380px;">
             <table>
               <thead>
@@ -231,9 +229,7 @@
                   <th>수수료율</th>
                   <th>수수료기준</th>
                   <th class="right">손익분기</th>
-                  <th class="right">마진 5%</th>
                   <th class="right">마진 10%</th>
-                  <th class="right">마진 15%</th>
                 </tr>
               </thead>
               <tbody id="calcResultTable"></tbody>
@@ -308,6 +304,7 @@
             <th class="w-70">선택</th>
             <th class="w-150">상품명</th>
             <th class="w-100">채널</th>
+            <th class="w-70">반영</th>
             <th class="w-90 right">총원가</th>
             <th class="w-90 right">기준가(지마켓)</th>
             <th class="w-90 right">정상가</th>
@@ -329,7 +326,7 @@
         <tbody id="opsTableBody"></tbody>
       </table>
     </div>
-    <div class="footer-note">* 네이버 같은 채널은 “할인가 기준 수수료”로 설정 가능. 지마켓 기준가를 기준값으로 유지하면서 할인 영향 확인 가능.</div>
+    <div class="footer-note">* “반영” 체크 = 해당 채널 관리자페이지에서 가격 변경 완료 표시용.</div>
   </section>
 
   <!-- ======================== 일정 탭 ======================== -->
@@ -427,6 +424,16 @@
           <input id="settingsSoonDays" type="number" min="1" step="1" />
         </div>
       </div>
+
+      <div class="row">
+        <div>
+          <label>기본 보정 마진율 (예: 0.10 = /0.90)</label>
+          <input id="settingsDefaultGuardRate" type="number" min="0" max="0.99" step="0.01" />
+          <div class="muted" style="margin-top:6px;">상품계산 화면에서는 숨기고, 여기서만 관리함.</div>
+        </div>
+        <div></div><div></div><div></div>
+      </div>
+
       <div class="sticky-tools">
         <button class="btn" id="btnSaveRuntimeSettings">설정 저장</button>
       </div>
@@ -512,16 +519,15 @@ const DEFAULT_DATA = {
     minMarginRatePct: 3,
     minMarginAmt: 500,
     baseChannel: "지마켓",
-    soonDays: 3
+    soonDays: 3,
+    defaultGuardRate: 0.10  // ✅ “기본 보정 마진율”은 설정 탭에서만 관리
   },
   calcDraft: {
     productName: "",
     baseCost: 7552,
     qty: 1,
-    costVatMode: "vat_excluded",   // VAT 입력 방식
+    costVatMode: "vat_excluded",
     vatRate: 0.10,
-    guardPreset: "0.10",           // 5/10/15/custom
-    discountGuardRate: 0.10,       // 실제 계산에 들어갈 보정 마진율
     insulationType: "기본",
     styroType: "S",
     shippingType: "기본",
@@ -529,12 +535,12 @@ const DEFAULT_DATA = {
     extraMatCost: 0,
     roundUnit: 100
   },
-  calcLastResult: null,
+  calcLastResult: null, // {draft,costBase,createdAt,lastAddedGroupId?}
   opsRows: [],
-  changeLog: [] // {rowId, changedAt}
+  changeLog: [] // {rowId, changedAt, action}
 };
 
-const STORAGE_KEY = "price_ops_dashboard_v2";
+const STORAGE_KEY = "price_ops_dashboard_v3_checkmark_10only";
 
 /* ===========================
    상태 로드/세이브
@@ -549,6 +555,7 @@ function loadState(){
 
     const s = structuredClone(DEFAULT_DATA);
     Object.assign(s, parsed);
+
     s.costOptions = parsed.costOptions || s.costOptions;
     s.channelPolicies = parsed.channelPolicies || s.channelPolicies;
     s.runtimeSettings = Object.assign({}, s.runtimeSettings, parsed.runtimeSettings || {});
@@ -574,19 +581,24 @@ function computeCostBaseFromDraft(draft){
   const baseCost = num(draft.baseCost);
   const qty = Math.max(1, num(draft.qty,1));
   const vatRate = num(draft.vatRate,0.1);
-  const discountGuardRate = num(draft.discountGuardRate,0.1);
   const extraMatCost = Math.max(0, num(draft.extraMatCost,0));
   const costVatMode = draft.costVatMode || "vat_excluded";
 
-  // VAT 포함/비포함 선택 반영
+  // ✅ 기본 보정 마진율: 설정 탭 값만 사용 (상품계산 UI에 안 보여줌)
+  const discountGuardRate = num(state.runtimeSettings.defaultGuardRate, 0.10);
+
   const vatIncludedCostPerUnit =
     costVatMode === "vat_included"
       ? baseCost
       : baseCost * (1 + vatRate);
 
-  // /0.95 /0.90 /0.85 같은 보정
   const guardDenom = 1 - discountGuardRate;
-  const guardedUnitCost = guardDenom > 0 ? vatIncludedCostPerUnit / guardDenom : Infinity;
+
+  // ✅ 총원가는 보정 없는 VAT 포함 원가 기준
+  const unitCost = vatIncludedCostPerUnit;
+
+  // ✅ 보정 원가(표시용)
+  const guardedUnitCost = guardDenom > 0 ? unitCost / guardDenom : Infinity;
 
   const insulationCost = num(state.costOptions.insulation[draft.insulationType],0);
   const styroCost = num(state.costOptions.styro[draft.styroType],0);
@@ -594,7 +606,7 @@ function computeCostBaseFromDraft(draft){
   const normalBoxCost = num(state.costOptions.normalBox[draft.normalBoxType],0);
   const packageShippingTotal = insulationCost + styroCost + shippingCost + normalBoxCost + extraMatCost;
 
-  const totalCost = guardedUnitCost * qty + packageShippingTotal;
+  const totalCost = unitCost * qty + packageShippingTotal;
 
   return {
     baseCost, qty, vatRate, discountGuardRate, costVatMode,
@@ -610,9 +622,12 @@ function computeCostBaseFromDraft(draft){
 
 function computeChannelBreakEven(totalCost, policy, targetMarginRate=0, roundUnit=100){
   const feeRate = num(policy.feeRate,0);
-  const denom = 1 - feeRate;
-  if(denom <= 0) return Infinity;
-  const sell = totalCost * (1 + targetMarginRate) / denom;
+  const feeDenom = 1 - feeRate;
+  const marginDenom = 1 - num(targetMarginRate,0);
+
+  if(feeDenom <= 0 || marginDenom <= 0) return Infinity;
+
+  const sell = totalCost / marginDenom / feeDenom;
   return ceilUnit(sell, roundUnit);
 }
 
@@ -726,19 +741,6 @@ function fillCostOptionSelects(){
   fillSelect("calcNormalBoxType", state.costOptions.normalBox, state.calcDraft.normalBoxType);
 }
 
-function syncGuardPresetUI(){
-  const preset = $("calcGuardPreset").value;
-  const input = $("calcDiscountGuardRate");
-  const isCustom = preset === "custom";
-
-  input.disabled = !isCustom;
-  input.style.background = isCustom ? "#fff" : "#f3f4f6";
-
-  if (!isCustom) {
-    input.value = Number(preset).toFixed(2);
-  }
-}
-
 function loadCalcDraftToUI(){
   const d = state.calcDraft;
   $("calcProductName").value = d.productName || "";
@@ -746,30 +748,18 @@ function loadCalcDraftToUI(){
   $("calcQty").value = d.qty;
   $("calcCostVatMode").value = d.costVatMode || "vat_excluded";
   $("calcVatRate").value = d.vatRate;
-  $("calcGuardPreset").value = d.guardPreset || "0.10";
-  $("calcDiscountGuardRate").value = d.discountGuardRate;
   $("calcExtraMatCost").value = d.extraMatCost || 0;
   $("calcRoundUnit").value = String(d.roundUnit || 100);
   fillCostOptionSelects();
-  syncGuardPresetUI();
 }
 
 function readCalcDraftFromUI(){
-  const guardPreset = $("calcGuardPreset").value;
-
-  let guardRate = num($("calcDiscountGuardRate").value, 0.10);
-  if (guardPreset !== "custom") {
-    guardRate = num(guardPreset, 0.10);
-  }
-
   state.calcDraft = {
     productName: $("calcProductName").value.trim(),
     baseCost: num($("calcBaseCost").value,0),
     qty: Math.max(1, num($("calcQty").value,1)),
     costVatMode: $("calcCostVatMode").value,
     vatRate: num($("calcVatRate").value,0.1),
-    guardPreset: guardPreset,
-    discountGuardRate: guardRate,
     insulationType: $("calcInsulationType").value,
     styroType: $("calcStyroType").value,
     shippingType: $("calcShippingType").value,
@@ -778,6 +768,46 @@ function readCalcDraftFromUI(){
     roundUnit: num($("calcRoundUnit").value,100)
   };
   saveState();
+}
+
+function renderCalcApplyChecklist(){
+  const wrap = $("calcApplyChecklist");
+  const last = state.calcLastResult;
+
+  if(!last || !last.lastAddedGroupId){
+    wrap.innerHTML = `<div class="hint">* 먼저 “운영표에 추가”를 눌러야 체크가 연결됨</div>`;
+    return;
+  }
+
+  const gid = last.lastAddedGroupId;
+  const channels = ["쿠팡","지마켓","네이버"];
+
+  const items = channels.map(ch=>{
+    const row = state.opsRows.find(r => r.groupId === gid && r.channel === ch);
+    const checked = row?.applied ? "checked" : "";
+    const disabled = row ? "" : "disabled";
+    return `
+      <label class="item">
+        <input type="checkbox" data-ch="${escapeHtml(ch)}" ${checked} ${disabled} />
+        <span>${escapeHtml(ch)} 반영완료</span>
+      </label>
+    `;
+  }).join("");
+
+  wrap.innerHTML = items + `<div class="hint">* 여기 체크하면 운영표의 같은 채널 행 “반영”도 같이 체크됨</div>`;
+
+  wrap.querySelectorAll("input[type=checkbox][data-ch]").forEach(cb=>{
+    cb.addEventListener("change", ()=>{
+      const ch = cb.dataset.ch;
+      const row = state.opsRows.find(r => r.groupId === gid && r.channel === ch);
+      if(!row) return;
+      row.applied = !!cb.checked;
+      markChanged(row.id, "apply_toggle");
+      saveState();
+      // ops 탭 보고있을 수도 있어서 갱신
+      renderOpsTable();
+    });
+  });
 }
 
 function renderCalcResult(){
@@ -803,29 +833,27 @@ function renderCalcResult(){
   tbody.innerHTML = "";
   state.channelPolicies.forEach(p=>{
     const be = computeChannelBreakEven(costBase.totalCost, p, 0, roundUnit);
-    const m5 = computeChannelBreakEven(costBase.totalCost, p, 0.05, roundUnit);
     const m10 = computeChannelBreakEven(costBase.totalCost, p, 0.10, roundUnit);
-    const m15 = computeChannelBreakEven(costBase.totalCost, p, 0.15, roundUnit);
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(p.channel)}</td>
       <td>${(num(p.feeRate,0)*100).toFixed(1)}%</td>
       <td>${policyFeeBaseLabel(p.feeBase)}</td>
       <td class="right">${won(be)}</td>
-      <td class="right">${won(m5)}</td>
       <td class="right">${won(m10)}</td>
-      <td class="right">${won(m15)}</td>
     `;
     tbody.appendChild(tr);
   });
 
   const modeLabel = d.costVatMode === "vat_included" ? "VAT 포함가" : "VAT 비포함가";
+  const guard = num(state.runtimeSettings.defaultGuardRate,0.10);
   const summary = [
     `상품명: ${d.productName || "(미입력)"}`,
     `원가 입력값: ${won(d.baseCost)} (${modeLabel})`,
     `VAT율: ${(d.vatRate*100).toFixed(1)}%`,
     `VAT 포함 기준 원가(1개): ${won(costBase.vatIncludedCostPerUnit)}`,
-    `기본 계산 마진율(보정): ${(d.discountGuardRate*100).toFixed(1)}% (/${(1-d.discountGuardRate).toFixed(2)})`,
+    `기본 보정 마진율(표시용): ${(guard*100).toFixed(1)}% (/${(1-guard).toFixed(2)})`,
     `수량(묶음): ${d.qty}`,
     `포장/배송비 합계: ${won(costBase.packageShippingTotal)}`,
     `  - 보냉박스: ${won(costBase.breakdown.insulationCost)}`,
@@ -837,15 +865,17 @@ function renderCalcResult(){
   ].join("\n");
   $("calcSummary").value = summary;
 
-  state.calcLastResult = {
+  state.calcLastResult = Object.assign({}, state.calcLastResult || {}, {
     draft: clone(d),
     costBase,
     createdAt: new Date().toISOString()
-  };
+  });
   saveState();
+
+  renderCalcApplyChecklist();
 }
 
-function calcToOpsRow(channelName){
+function calcToOpsRow(channelName, groupId){
   const last = state.calcLastResult;
   if(!last){
     alert("먼저 계산하기를 눌러주세요.");
@@ -856,7 +886,7 @@ function calcToOpsRow(channelName){
   const roundUnit = num(last.draft.roundUnit,100);
 
   const basePolicy = state.channelPolicies.find(p => p.channel === baseChannel) || state.channelPolicies[0];
-  const suggestedBasePrice = computeChannelBreakEven(totalCost, basePolicy, 0.10, roundUnit); // 기준 10% 목표마진 추천
+  const suggestedBasePrice = computeChannelBreakEven(totalCost, basePolicy, 0.10, roundUnit);
 
   const defaultChannel = channelName || baseChannel;
   const policy = state.channelPolicies.find(p => p.channel === defaultChannel) || state.channelPolicies[0];
@@ -873,8 +903,10 @@ function calcToOpsRow(channelName){
 
   const row = {
     id: uid(),
+    groupId: groupId || null,      // ✅ 같은 상품 묶음으로 추가된 행들 연결
     productName: last.draft.productName || "새 상품",
     channel: defaultChannel,
+    applied: false,                // ✅ 반영 체크 기본값
     totalCost: totalCost,
     basePrice: suggestedBasePrice,
     normalPrice: normalPrice,
@@ -891,8 +923,6 @@ function calcToOpsRow(channelName){
   state.opsRows.unshift(row);
   state.changeLog.push({ rowId: row.id, changedAt: new Date().toISOString(), action:"create" });
   saveState();
-  renderOpsTable();
-  alert(`운영표에 추가됨 (${defaultChannel})`);
 }
 
 /* ===========================
@@ -976,6 +1006,18 @@ function onOpsCellChange(e, opt={reRender:true}){
 
   if(opt.reRender !== false) renderOpsTable();
 }
+
+function onOpsAppliedToggle(e){
+  const rowId = e.target.dataset.id;
+  const row = findRowById(rowId);
+  if(!row) return;
+  row.applied = !!e.target.checked;
+  markChanged(rowId, "apply_toggle");
+  saveState();
+  renderOpsTable();
+  renderCalcApplyChecklist();
+}
+
 function onOpsChannelChange(e){
   const rowId = e.target.dataset.id;
   const row = findRowById(rowId);
@@ -990,6 +1032,7 @@ function onOpsChannelChange(e){
   markChanged(rowId);
   saveState();
   renderOpsTable();
+  renderCalcApplyChecklist();
 }
 function onOpsDiscountTypeChange(e){
   const rowId = e.target.dataset.id;
@@ -1009,6 +1052,7 @@ window.duplicateRow = function(rowId){
   newRow.id = uid();
   newRow.memo = (row.memo ? row.memo + " / " : "") + "복제";
   newRow.updatedAt = new Date().toISOString();
+  newRow.applied = false; // 복제는 다시 반영 체크 풀어둠
   state.opsRows.unshift(newRow);
   markChanged(newRow.id, "duplicate");
   saveState();
@@ -1020,6 +1064,7 @@ window.deleteRow = function(rowId){
   state.changeLog.push({ rowId, changedAt:new Date().toISOString(), action:"delete" });
   saveState();
   renderOpsTable();
+  renderCalcApplyChecklist();
 };
 
 function renderOpsTable(){
@@ -1052,6 +1097,9 @@ function renderOpsTable(){
       <td><input type="checkbox" class="ops-select" data-id="${row.id}" /></td>
       <td><input data-field="productName" data-id="${row.id}" value="${escapeHtml(row.productName)}" /></td>
       <td>${channelSelectHtml(row.id, row.channel)}</td>
+      <td style="text-align:center;">
+        <input type="checkbox" class="ops-applied" data-id="${row.id}" ${row.applied ? "checked" : ""} />
+      </td>
       <td class="right"><input class="right-input" type="number" data-field="totalCost" data-id="${row.id}" value="${num(row.totalCost,0)}" /></td>
       <td class="right"><input class="right-input" type="number" data-field="basePrice" data-id="${row.id}" value="${num(row.basePrice,0)}" /></td>
       <td class="right"><input class="right-input" type="number" data-field="normalPrice" data-id="${row.id}" value="${num(row.normalPrice,0)}" /></td>
@@ -1093,6 +1141,10 @@ function renderOpsTable(){
   tbody.querySelectorAll("select.ops-discount-type").forEach(el=>{
     el.addEventListener("change", onOpsDiscountTypeChange);
   });
+
+  tbody.querySelectorAll("input.ops-applied").forEach(el=>{
+    el.addEventListener("change", onOpsAppliedToggle);
+  });
 }
 
 function addBlankOpsRow(){
@@ -1100,8 +1152,10 @@ function addBlankOpsRow(){
   const policy = state.channelPolicies.find(p=>p.channel===baseChannel) || state.channelPolicies[0];
   state.opsRows.unshift({
     id: uid(),
+    groupId: null,
     productName: "새 상품",
     channel: baseChannel,
+    applied: false,
     totalCost: 0,
     basePrice: 0,
     normalPrice: 0,
@@ -1129,6 +1183,7 @@ function duplicateSelectedRows(){
   list.reverse().forEach(row=>{
     const n = clone(row); n.id = uid(); n.updatedAt = new Date().toISOString();
     n.memo = (n.memo ? n.memo + " / " : "") + "복제";
+    n.applied = false;
     state.opsRows.unshift(n);
     markChanged(n.id, "duplicate");
   });
@@ -1143,6 +1198,7 @@ function deleteSelectedRows(){
   ids.forEach(id=>state.changeLog.push({ rowId:id, changedAt:new Date().toISOString(), action:"delete" }));
   saveState();
   renderOpsTable();
+  renderCalcApplyChecklist();
 }
 
 function exportOpsCsv({todayOnly=false}={}){
@@ -1159,13 +1215,14 @@ function exportOpsCsv({todayOnly=false}={}){
   }
 
   const headers = [
-    "상품명","채널","총원가","기준가","정상가","할인방식","할인값","할인가","수수료율","수수료기준","실수령예상","마진액","마진률","시작일","종료일","상태","메모"
+    "상품명","채널","반영","총원가","기준가","정상가","할인방식","할인값","할인가","수수료율","수수료기준","실수령예상","마진액","마진률","시작일","종료일","상태","메모"
   ];
   const lines = [headers.join(",")];
   rows.forEach(r=>{
     const d = computeOpsRowDerived(r);
     const row = [
-      r.productName, r.channel, Math.round(num(r.totalCost,0)), Math.round(num(r.basePrice,0)),
+      r.productName, r.channel, r.applied ? "Y" : "N",
+      Math.round(num(r.totalCost,0)), Math.round(num(r.basePrice,0)),
       Math.round(num(r.normalPrice,0)), r.discountType, num(r.discountValue,0), Math.round(d.discountPrice),
       (d.feeRate*100).toFixed(1)+"%", policyFeeBaseLabel(d.feeBase), Math.round(d.settlement),
       Math.round(d.marginAmt), d.marginRate.toFixed(1)+"%", r.startDate||"", r.endDate||"", d.status, r.memo||""
@@ -1287,6 +1344,8 @@ function renderSettings(){
   $("settingsMinMarginAmt").value = num(state.runtimeSettings.minMarginAmt,500);
   $("settingsSoonDays").value = num(state.runtimeSettings.soonDays,3);
   $("settingsBaseChannel").value = state.runtimeSettings.baseChannel || "";
+
+  $("settingsDefaultGuardRate").value = num(state.runtimeSettings.defaultGuardRate, 0.10).toFixed(2);
 }
 
 function savePoliciesFromUI(){
@@ -1350,9 +1409,11 @@ function saveRuntimeSettings(){
   state.runtimeSettings.minMarginAmt = num($("settingsMinMarginAmt").value,500);
   state.runtimeSettings.baseChannel = $("settingsBaseChannel").value || state.channelPolicies[0]?.channel || "지마켓";
   state.runtimeSettings.soonDays = Math.max(1, num($("settingsSoonDays").value,3));
+  state.runtimeSettings.defaultGuardRate = Math.min(0.99, Math.max(0, num($("settingsDefaultGuardRate").value,0.10)));
   saveState();
   renderOpsTable();
   renderScheduleTable();
+  renderCalcResult();
   alert("운영 기준 저장됨");
 }
 
@@ -1380,35 +1441,6 @@ function importJsonBackup(file){
 }
 
 /* ===========================
-   운영표 일괄 액션
-=========================== */
-function getSelectedRowIds(){
-  return [...document.querySelectorAll(".ops-select:checked")].map(x=>x.dataset.id);
-}
-function duplicateSelectedRows(){
-  const ids = getSelectedRowIds();
-  if(!ids.length){ alert("선택된 행이 없음"); return; }
-  const list = ids.map(id => findRowById(id)).filter(Boolean);
-  list.reverse().forEach(row=>{
-    const n = clone(row); n.id = uid(); n.updatedAt = new Date().toISOString();
-    n.memo = (n.memo ? n.memo + " / " : "") + "복제";
-    state.opsRows.unshift(n);
-    markChanged(n.id, "duplicate");
-  });
-  saveState();
-  renderOpsTable();
-}
-function deleteSelectedRows(){
-  const ids = getSelectedRowIds();
-  if(!ids.length){ alert("선택된 행이 없음"); return; }
-  if(!confirm(`선택 ${ids.length}개 행 삭제할까?`)) return;
-  state.opsRows = state.opsRows.filter(r=>!ids.includes(r.id));
-  ids.forEach(id=>state.changeLog.push({ rowId:id, changedAt:new Date().toISOString(), action:"delete" }));
-  saveState();
-  renderOpsTable();
-}
-
-/* ===========================
    이벤트 바인딩
 =========================== */
 function bindEvents(){
@@ -1416,16 +1448,12 @@ function bindEvents(){
   [
     "calcProductName","calcBaseCost","calcQty",
     "calcCostVatMode","calcVatRate",
-    "calcGuardPreset","calcDiscountGuardRate",
     "calcInsulationType","calcStyroType","calcShippingType","calcNormalBoxType",
     "calcExtraMatCost","calcRoundUnit"
   ].forEach(id => {
-    $(id).addEventListener("change", () => {
-      if(id === "calcGuardPreset") syncGuardPresetUI();
-      renderCalcResult();
-    });
+    $(id).addEventListener("change", () => renderCalcResult());
     $(id).addEventListener("input", () => {
-      if(["calcProductName","calcDiscountGuardRate"].includes(id)) renderCalcResult();
+      if(["calcProductName"].includes(id)) renderCalcResult();
     });
   });
 
@@ -1433,19 +1461,29 @@ function bindEvents(){
 
   $("btnCalcReset").addEventListener("click", ()=>{
     state.calcDraft = clone(DEFAULT_DATA.calcDraft);
+    state.calcLastResult = null;
     saveState();
     loadCalcDraftToUI();
     renderCalcResult();
   });
 
+  // ✅ 운영표에 추가: 지마켓+네이버+쿠팡 3행 자동
   $("btnCalcToOps").addEventListener("click", ()=>{
-    const addBoth = confirm("기준채널 행 + 네이버 행을 같이 추가할까?\n[확인]=둘 다 추가 / [취소]=기준채널만");
-    if(addBoth){
-      calcToOpsRow(state.runtimeSettings.baseChannel || "지마켓");
-      calcToOpsRow("네이버");
-    }else{
-      calcToOpsRow(state.runtimeSettings.baseChannel || "지마켓");
+    if(!state.calcLastResult){
+      alert("먼저 계산하기를 눌러주세요.");
+      return;
     }
+    const gid = uid();
+    calcToOpsRow("지마켓", gid);
+    calcToOpsRow("네이버", gid);
+    calcToOpsRow("쿠팡", gid);
+
+    state.calcLastResult.lastAddedGroupId = gid;
+    saveState();
+
+    renderOpsTable();
+    renderCalcApplyChecklist();
+    alert("운영표에 추가됨 (지마켓 + 네이버 + 쿠팡)");
   });
 
   // 운영표 필터
@@ -1485,8 +1523,9 @@ function bindEvents(){
   $("btnResetAll").addEventListener("click", ()=>{
     if(!confirm("진짜 전체 데이터 초기화할까? (복구 어려움)")) return;
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("price_ops_dashboard_v1"); // 혹시 이전버전 키도 정리
+    localStorage.removeItem("price_ops_dashboard_v1");
     localStorage.removeItem("price_ops_dashboard_v2");
+    localStorage.removeItem("price_ops_dashboard_v3_checkmark_10only");
     state = structuredClone(DEFAULT_DATA);
     saveState();
     initAll();
@@ -1500,7 +1539,6 @@ function bindEvents(){
 function initAll(){
   loadCalcDraftToUI();
   fillCostOptionSelects();
-  syncGuardPresetUI();
   renderChannelFilterOptions();
   renderCalcResult();
   renderOpsTable();
