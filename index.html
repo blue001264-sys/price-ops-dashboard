@@ -514,6 +514,19 @@ function csvEscape(v){
 function policyFeeBaseLabel(v){
   return v === "discount_price" ? "할인가" : "정상가";
 }
+function makeSafeFileName(name){
+  return String(name || "제품명없음")
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, "_");
+}
+function getCurrentProductFileBaseName(){
+  const name =
+    $("calcProductName")?.value?.trim() ||
+    state?.calcDraft?.productName ||
+    "제품명없음";
+  return makeSafeFileName(name);
+}
 function downloadText(text, filename, mime="text/plain;charset=utf-8;"){
   const blob = new Blob([text], {type:mime});
   const url = URL.createObjectURL(blob);
@@ -546,7 +559,7 @@ const DEFAULT_DATA = {
     { id: uid(), channel:"지마켓", feeRate:0.15, feeBase:"normal_price" },
     { id: uid(), channel:"옥션", feeRate:0.15, feeBase:"normal_price" },
     { id: uid(), channel:"11번가", feeRate:0.15, feeBase:"normal_price" },
-    { id: uid(), channel:"쿠팡", feeRate:0.15, feeBase:"normal_price" },
+    { id: uid(), channel:"쿠팡", feeRate:0.12, feeBase:"normal_price" },
     { id: uid(), channel:"네이버", feeRate:0.07, feeBase:"discount_price" },
     { id: uid(), channel:"카페24", feeRate:0.05, feeBase:"normal_price" }
   ],
@@ -918,13 +931,11 @@ function calcToOpsRow(channelName, groupId, bundleQty){
   const costBase = computeCostBaseFromDraft(draftForQty);
   const totalCost = Math.round(costBase.totalCost);
 
-  const baseChannel = state.runtimeSettings.baseChannel || "지마켓";
   const roundUnit = num(draftForQty.roundUnit, 100);
-  const basePolicy = state.channelPolicies.find(p => p.channel === baseChannel) || state.channelPolicies[0];
-  const suggestedBasePrice = computeChannelBreakEven(totalCost, basePolicy, 0.10, roundUnit);
-
-  const defaultChannel = channelName || baseChannel;
+  const defaultChannel = channelName || state.runtimeSettings.baseChannel || "지마켓";
   const policy = state.channelPolicies.find(p => p.channel === defaultChannel) || state.channelPolicies[0];
+
+  const suggestedBasePrice = computeChannelBreakEven(totalCost, policy, 0.10, roundUnit);
 
   let normalPrice = suggestedBasePrice;
   let discountType = "none";
@@ -1284,7 +1295,11 @@ function exportOpsCsv(){
     lines.push(row.map(csvEscape).join(","));
   });
 
-  downloadText(lines.join("\n"), `운영표_${todayStr()}.csv`, "text/csv;charset=utf-8;");
+  downloadText(
+    lines.join("\n"),
+    `${getCurrentProductFileBaseName()}_운영표_${todayStr()}.csv`,
+    "text/csv;charset=utf-8;"
+  );
 }
 
 function renderSettings(){
@@ -1423,7 +1438,7 @@ function saveRuntimeSettings(){
 function exportJsonBackup(){
   downloadText(
     JSON.stringify(state, null, 2),
-    `가격운영대시보드_백업_${todayStr()}.json`,
+    `${getCurrentProductFileBaseName()}_가격운영대시보드_백업_${todayStr()}.json`,
     "application/json;charset=utf-8;"
   );
 }
