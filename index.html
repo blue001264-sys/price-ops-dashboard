@@ -361,7 +361,7 @@
         </div>
 
         <div style="margin-top:12px;">
-          <h2 style="margin-bottom:8px;">채널별 손익분기 / 마진 5% / 마진 10% 목표가</h2>
+          <h2 style="margin-bottom:8px;">채널별 손익분기 / 마진 7% / 마진 10% 목표가</h2>
           <div class="table-wrap" style="max-height:380px;">
             <table>
               <thead>
@@ -370,7 +370,7 @@
                   <th>수수료율</th>
                   <th>수수료기준</th>
                   <th class="right">손익분기</th>
-                  <th class="right">마진 5%</th>
+                  <th class="right">마진 7%</th>
                   <th class="right">마진 10%</th>
                 </tr>
               </thead>
@@ -865,7 +865,7 @@ function renderCalcResult(){
 
   state.channelPolicies.forEach(p => {
     const be = computeChannelBreakEven(costBase.totalCost, p, 0, roundUnit);
-    const m5 = computeChannelBreakEven(costBase.totalCost, p, 0.05, roundUnit);
+    const m7 = computeChannelBreakEven(costBase.totalCost, p, 0.07, roundUnit);
     const m10 = computeChannelBreakEven(costBase.totalCost, p, 0.10, roundUnit);
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -873,7 +873,7 @@ function renderCalcResult(){
       <td>${(num(p.feeRate, 0) * 100).toFixed(1)}%</td>
       <td>${policyFeeBaseLabel(p.feeBase)}</td>
       <td class="right">${won(be)}</td>
-      <td class="right">${won(m5)}</td>
+      <td class="right">${won(m7)}</td>
       <td class="right">${won(m10)}</td>
     `;
     tbody.appendChild(tr);
